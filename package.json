@@ -1,13 +1,16 @@
 {
   "name": "ai-api-lab",
-  "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "license": "MIT",
+  "publisher": "onprems.ai",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "preview:cf": "npm run build && wrangler pages dev dist",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=ai-api-lab",
     "test:integration": "vitest src/hooks/*.test.ts --globals",
     "test:integration:paddleocr": "vitest src/services/api-handlers/paddleocr/handler.test.ts --globals"
   },
@@ -49,6 +52,7 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.0",
     "vite": "^8.0.4",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.4",
+    "wrangler": "^4.83.0"
   }
 }

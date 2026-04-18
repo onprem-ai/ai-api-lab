@@ -34,7 +34,7 @@ export const anthropicHandler: StreamingApiHandler = {
     requiresMaxTokens: true,
   },
   testConnection: testAnthropicModelsEndpoint,
-  buildMessages({ prompt, systemPrompt, imageDataUri }) {
+  buildMessages({ prompt, imageDataUri }) {
     // Anthropic uses a different message format:
     // - system prompt is NOT a message, it's a top-level param (handled in the streaming layer)
     // - images use { type: "image", source: { type: "base64", media_type, data } }

@@ -8,21 +8,13 @@
  * 3. Add it to the API_HANDLER_DOCS map
  */
 
-// @ts-expect-error — Vite ?raw imports return strings but TS doesn't know about them
 import openaiDoc from './openai/API.md?raw';
-// @ts-expect-error
 import openaiVlDoc from './openai-vl/API.md?raw';
-// @ts-expect-error
 import openaiAsrDoc from './openai-asr/API.md?raw';
-// @ts-expect-error
 import anthropicDoc from './anthropic/API.md?raw';
-// @ts-expect-error
 import anthropicVlDoc from './anthropic-vl/API.md?raw';
-// @ts-expect-error
 import paddleocrDoc from './paddleocr/API.md?raw';
-// @ts-expect-error
 import bflDoc from './bfl/API.md?raw';
-// @ts-expect-error
 import ltxDoc from './ltx/API.md?raw';
 
 /** Map of handler type → raw markdown content */

@@ -14,7 +14,12 @@ export interface ImageUrlContentPart {
   image_url: { url: string };
 }
 
-export type ContentPart = TextContentPart | ImageUrlContentPart;
+export interface AnthropicImageContentPart {
+  type: 'image';
+  source: { type: 'base64'; media_type: string; data: string };
+}
+
+export type ContentPart = TextContentPart | ImageUrlContentPart | AnthropicImageContentPart;
 
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant';
