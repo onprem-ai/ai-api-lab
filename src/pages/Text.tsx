@@ -192,7 +192,10 @@ export function Text() {
             </div>
           )}
 
-          <div className="text-xs font-semibold mb-1 text-subtle">Output</div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-semibold text-subtle">Output</span>
+            <span className="text-xs text-subtle font-mono truncate ml-2">{apiUrl || 'http://localhost:3000'} · {model || 'gpt-3.5-turbo'}</span>
+          </div>
           <textarea
             ref={outputRef}
             className="w-full h-64 p-3 border rounded-sm text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"

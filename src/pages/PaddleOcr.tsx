@@ -28,21 +28,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-interface SampleImage {
-  fileName: string;
-  label: string;
-  description: string;
-  /** Optional thumbnail for non-image files (e.g. PDFs) */
-  thumbFileName?: string;
-}
-
-const SAMPLE_IMAGES: SampleImage[] = [
-  { fileName: 'receipt.jpg', label: 'Receipt', description: 'Store receipt with items' },
-  { fileName: 'invoice.png', label: 'Invoice', description: 'Business invoice document' },
-  { fileName: 'handwritten-note.jpg', label: 'Handwritten Note', description: 'Handwritten text on paper' },
-  { fileName: 'form.png', label: 'Form', description: 'Filled-out paper form' },
-  { fileName: 'cv_de.pdf', label: 'CV (German)', description: 'PDF curriculum vitae', thumbFileName: 'cv_de.thumb.png' },
-];
+import { SamplePickerModal, type SampleFile } from '@/components/SamplePickerModal';
 
 async function fetchSampleImageAsDataUri(fileName: string): Promise<string> {
   const response = await fetch(`/samples/${fileName}`);
@@ -83,15 +69,6 @@ export function PaddleOcr() {
     }
   }, [outputText]);
 
-  // Close sample modal on Escape
-  useEffect(() => {
-    if (!showSampleModal) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowSampleModal(false);
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [showSampleModal]);
 
   const loadImageFile = useCallback(async (file: File) => {
     setImageError('');
@@ -144,7 +121,7 @@ export function PaddleOcr() {
     if (file) loadImageFile(file);
   };
 
-  const handleSelectSample = useCallback(async (sample: SampleImage) => {
+  const handleSelectSample = useCallback(async (sample: SampleFile) => {
     setImageError('');
     try {
       const dataUri = await fetchSampleImageAsDataUri(sample.fileName);
@@ -403,50 +380,12 @@ export function PaddleOcr() {
         </div>
       )}
 
-      {/* Sample Images Modal */}
-      {showSampleModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowSampleModal(false)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setShowSampleModal(false);
-          }}
-        >
-          <div
-            className="bg-background border border-border rounded-sm p-5 w-full max-w-md"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-sm font-semibold">Select Sample Image</h3>
-              <button
-                type="button"
-                onClick={() => setShowSampleModal(false)}
-                className="text-subtle hover:text-foreground text-lg leading-none"
-              >
-                &times;
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {SAMPLE_IMAGES.map((sample) => (
-                <button
-                  key={sample.fileName}
-                  type="button"
-                  onClick={() => handleSelectSample(sample)}
-                  className="border border-border rounded-sm p-3 text-center hover:bg-muted/40 transition-colors cursor-pointer"
-                >
-                  <img
-                    src={`/samples/${sample.thumbFileName ?? sample.fileName}`}
-                    alt={sample.label}
-                    className="w-full h-20 object-contain rounded-sm bg-muted/20 mb-2"
-                  />
-                  <div className="text-xs font-medium">{sample.label}</div>
-                  <div className="text-xs text-subtle mt-0.5">{sample.description}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      <SamplePickerModal
+        open={showSampleModal}
+        onClose={() => setShowSampleModal(false)}
+        onSelect={handleSelectSample}
+        showPdfs
+      />
     </div>
   );
 }

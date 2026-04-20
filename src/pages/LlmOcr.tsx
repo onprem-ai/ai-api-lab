@@ -1,10 +1,17 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useLLMStream } from '@/hooks/useLLMStream';
 import { useStore } from '@/store/useStore';
 import { ApiTypeWarning } from '@/components/ApiTypeWarning';
 import { SystemPromptInput, UserPromptInput, MaxTokensInput } from '@/components/PromptInputs';
 import { getHandlersForModel, getDefaultHandlerType, getApiHandler } from '@/services/api-handlers/registry';
 import type { StreamingApiHandler, NonStreamingApiHandler } from '@/services/api-handlers/types';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+
+const CodeMirror = lazy(() => import('@uiw/react-codemirror'));
+
+type OutputTab = 'text' | 'preview' | 'code';
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20MB
@@ -24,18 +31,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-interface SampleImage {
-  fileName: string;
-  label: string;
-  description: string;
-}
-
-const SAMPLE_IMAGES: SampleImage[] = [
-  { fileName: 'receipt.jpg', label: 'Receipt', description: 'Store receipt with items' },
-  { fileName: 'invoice.png', label: 'Invoice', description: 'Business invoice document' },
-  { fileName: 'handwritten-note.jpg', label: 'Handwritten Note', description: 'Handwritten text on paper' },
-  { fileName: 'form.png', label: 'Form', description: 'Filled-out paper form' },
-];
+import { SamplePickerModal, type SampleFile } from '@/components/SamplePickerModal';
 
 async function fetchSampleImageAsDataUri(fileName: string): Promise<string> {
   const response = await fetch(`/samples/${fileName}`);
@@ -60,6 +56,9 @@ export function LlmOcr() {
   const { stream, cancel, metrics, reset, output } = useLLMStream();
   const { apiUrl, apiKey, model, systemPrompt, setSystemPrompt, maxTokens, setMaxTokens, charsPerToken } = useStore();
 
+  // Default to 16k tokens for this page on first mount
+  useEffect(() => { setMaxTokens(16384); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // --- Handler selection driven by model name (VL fallback for this page) ---
   const VL_FALLBACK_HANDLER = 'openai-vl';
   const availableHandlers = useMemo(() => getHandlersForModel(model, VL_FALLBACK_HANDLER), [model]);
@@ -72,6 +71,7 @@ export function LlmOcr() {
   }, [model]);
 
   // --- Non-streaming state (shared by all non-streaming handlers) ---
+  const [outputTab, setOutputTab] = useState<OutputTab>('text');
   const [nonStreamingOutput, setNonStreamingOutput] = useState<string>('');
   const [nonStreamingLoading, setNonStreamingLoading] = useState(false);
   const [nonStreamingError, setNonStreamingError] = useState<string>('');
@@ -173,7 +173,7 @@ export function LlmOcr() {
     }
   };
 
-  const handleSelectSample = useCallback(async (sample: SampleImage) => {
+  const handleSelectSample = useCallback(async (sample: SampleFile) => {
     setImageError('');
     try {
       const dataUri = await fetchSampleImageAsDataUri(sample.fileName);
@@ -187,15 +187,6 @@ export function LlmOcr() {
     }
   }, []);
 
-  // Close sample modal on Escape key
-  useEffect(() => {
-    if (!showSampleModal) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowSampleModal(false);
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [showSampleModal]);
 
   // Handle Cancel — cancels both streaming and non-streaming requests
   const handleCancel = () => {
@@ -490,17 +481,64 @@ export function LlmOcr() {
             </div>
           )}
 
-          <div className="text-xs font-semibold mb-1 text-subtle">
-            Output
-            {nonStreamingLoading && <span className="ml-2 text-subtle animate-pulse">Processing...</span>}
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-0">
+              {(['text', 'preview', 'code'] as OutputTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setOutputTab(tab)}
+                  className={`px-3 py-1 text-xs font-medium border-b-2 transition-colors ${
+                    outputTab === tab
+                      ? 'border-primary text-foreground'
+                      : 'border-transparent text-subtle hover:text-foreground'
+                  }`}
+                >
+                  {tab === 'text' ? 'Text' : tab === 'preview' ? 'Preview' : 'Code'}
+                </button>
+              ))}
+              {nonStreamingLoading && <span className="ml-2 text-xs text-subtle animate-pulse">Processing...</span>}
+            </div>
+            <span className="text-xs text-subtle font-mono truncate ml-2">{apiUrl || 'http://localhost:3000'} · {model || 'gpt-3.5-turbo'}</span>
           </div>
-          <textarea
-            ref={outputRef}
-            className="w-full h-64 p-3 border rounded-sm text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-            placeholder="Output text goes here..."
-            readOnly
-            value={displayOutput}
-          />
+
+          {outputTab === 'text' && (
+            <textarea
+              ref={outputRef}
+              className="w-full h-64 p-3 border rounded-sm text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              placeholder="Output text goes here..."
+              readOnly
+              value={displayOutput}
+            />
+          )}
+
+          {outputTab === 'preview' && (
+            <div className="w-full h-64 p-3 border rounded-sm text-sm overflow-y-auto">
+              {displayOutput ? (
+                <article className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                    {displayOutput}
+                  </ReactMarkdown>
+                </article>
+              ) : (
+                <p className="text-muted-foreground">Rendered output will appear here...</p>
+              )}
+            </div>
+          )}
+
+          {outputTab === 'code' && (
+            <div className="w-full h-64 border rounded-sm overflow-hidden">
+              <Suspense fallback={<div className="p-3 text-sm text-subtle">Loading editor...</div>}>
+                <CodeMirror
+                  value={displayOutput}
+                  height="256px"
+                  theme="dark"
+                  editable={false}
+                  basicSetup={{ lineNumbers: true, foldGutter: false }}
+                />
+              </Suspense>
+            </div>
+          )}
 
           {/* Metrics — adapted based on streaming vs non-streaming handler */}
           {isStreaming ? (
@@ -639,50 +677,11 @@ export function LlmOcr() {
         </div>
       )}
 
-      {/* Sample Images Modal */}
-      {showSampleModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowSampleModal(false)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setShowSampleModal(false);
-          }}
-        >
-          <div
-            className="bg-background border border-border rounded-sm p-5 w-full max-w-md"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-sm font-semibold">Select Sample Image</h3>
-              <button
-                type="button"
-                onClick={() => setShowSampleModal(false)}
-                className="text-subtle hover:text-foreground text-lg leading-none"
-              >
-                &times;
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {SAMPLE_IMAGES.map((sample) => (
-                <button
-                  key={sample.fileName}
-                  type="button"
-                  onClick={() => handleSelectSample(sample)}
-                  className="border border-border rounded-sm p-3 text-center hover:bg-muted/40 transition-colors cursor-pointer"
-                >
-                  <img
-                    src={`/samples/${sample.fileName}`}
-                    alt={sample.label}
-                    className="w-full h-20 object-contain rounded-sm bg-muted/20 mb-2"
-                  />
-                  <div className="text-xs font-medium">{sample.label}</div>
-                  <div className="text-xs text-subtle mt-0.5">{sample.description}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      <SamplePickerModal
+        open={showSampleModal}
+        onClose={() => setShowSampleModal(false)}
+        onSelect={handleSelectSample}
+      />
     </div>
   );
 }
