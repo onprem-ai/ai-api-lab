@@ -262,7 +262,7 @@ export function LlmOcr() {
     // --- Streaming handler path ---
     const streamingHandler = handler as StreamingApiHandler;
 
-    if (!promptRef.current.trim()) return;
+    if (!promptRef.current.trim() && !imageDataUriRef.current) return;
 
     // Clear non-streaming state when using streaming path
     setNonStreamingOutput('');
@@ -318,11 +318,11 @@ export function LlmOcr() {
   const displayOutput = isStreaming ? output : nonStreamingOutput;
   const displayError = isStreaming ? metrics.errorMessage : nonStreamingError;
 
-  // Send button disabled logic — driven by handler UI requirements
+  // Send button disabled logic — need at least an image or a prompt
   const isSendDisabled = (() => {
     if (!activeHandler) return true;
     if (activeHandler.ui.requiresImage && !imageDataUri) return true;
-    if (activeHandler.ui.requiresPrompt && !prompt.trim()) return true;
+    if (!imageDataUri && !prompt.trim()) return true;
     return false;
   })();
 
