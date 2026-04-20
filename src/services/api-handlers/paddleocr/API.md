@@ -2,22 +2,32 @@
 
 **Endpoint:** `POST {baseUrl}/layout-parsing`
 **Source:** PaddleOCR PP-StructureV2 layout parsing service
+**Docs:** https://paddlepaddle.github.io/PaddleX/latest/en/pipeline_usage/tutorials/ocr_pipelines/layout_parsing.html
 
 ## Request
 
 ```bash
+# Image
 curl -X POST http://192.168.0.155:38471/layout-parsing \
   -H "Content-Type: application/json" \
   -d '{
-    "file": "'$(base64 -w0 /path/to/your/document.png)'",
+    "file": "'$(base64 -w0 /path/to/image.png)'",
     "fileType": 1
+  }'
+
+# PDF
+curl -X POST http://192.168.0.155:38471/layout-parsing \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file": "'$(base64 -w0 /path/to/document.pdf)'",
+    "fileType": 0
   }'
 ```
 
 | Field      | Type   | Description                          |
 |------------|--------|--------------------------------------|
-| `file`     | string | Raw base64-encoded image (no data URI prefix) |
-| `fileType` | number | `1` = image                          |
+| `file`     | string | Raw base64-encoded image or PDF (no data URI prefix) |
+| `fileType` | number | `0` = PDF, `1` = image (optional — auto-detected if omitted) |
 
 ## Response
 

@@ -7,7 +7,7 @@ import { ApiTypeWarning } from '@/components/ApiTypeWarning';
 import { getApiHandler } from '@/services/api-handlers/registry';
 import type { NonStreamingApiHandler } from '@/services/api-handlers/types';
 
-const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+const ACCEPTED_FILE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf'];
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20MB
 
 /** The fixed handler type for this page */
@@ -32,6 +32,8 @@ interface SampleImage {
   fileName: string;
   label: string;
   description: string;
+  /** Optional thumbnail for non-image files (e.g. PDFs) */
+  thumbFileName?: string;
 }
 
 const SAMPLE_IMAGES: SampleImage[] = [
@@ -39,6 +41,7 @@ const SAMPLE_IMAGES: SampleImage[] = [
   { fileName: 'invoice.png', label: 'Invoice', description: 'Business invoice document' },
   { fileName: 'handwritten-note.jpg', label: 'Handwritten Note', description: 'Handwritten text on paper' },
   { fileName: 'form.png', label: 'Form', description: 'Filled-out paper form' },
+  { fileName: 'cv_de.pdf', label: 'CV (German)', description: 'PDF curriculum vitae', thumbFileName: 'cv_de.thumb.png' },
 ];
 
 async function fetchSampleImageAsDataUri(fileName: string): Promise<string> {
@@ -54,6 +57,7 @@ async function fetchSampleImageAsDataUri(fileName: string): Promise<string> {
 
 export function PaddleOcr() {
   const [imageDataUri, setImageDataUri] = useState<string | null>(null);
+  const [imagePreviewUri, setImagePreviewUri] = useState<string | null>(null);
   const [imageFileName, setImageFileName] = useState<string>('');
   const [imageFileSize, setImageFileSize] = useState<number>(0);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -91,8 +95,8 @@ export function PaddleOcr() {
 
   const loadImageFile = useCallback(async (file: File) => {
     setImageError('');
-    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-      setImageError(`Unsupported file type: ${file.type}. Use PNG, JPEG, GIF, or WebP.`);
+    if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
+      setImageError(`Unsupported file type: ${file.type}. Use PNG, JPEG, GIF, WebP, or PDF.`);
       return;
     }
     if (file.size > MAX_FILE_SIZE_BYTES) {
@@ -101,6 +105,7 @@ export function PaddleOcr() {
     }
     const dataUri = await fileToDataUri(file);
     setImageDataUri(dataUri);
+    setImagePreviewUri(file.type === 'application/pdf' ? null : dataUri);
     setImageFileName(file.name);
     setImageFileSize(file.size);
   }, []);
@@ -113,6 +118,7 @@ export function PaddleOcr() {
 
   const handleRemoveImage = () => {
     setImageDataUri(null);
+    setImagePreviewUri(null);
     setImageFileName('');
     setImageFileSize(0);
     setImageError('');
@@ -143,11 +149,17 @@ export function PaddleOcr() {
     try {
       const dataUri = await fetchSampleImageAsDataUri(sample.fileName);
       setImageDataUri(dataUri);
+      if (sample.thumbFileName) {
+        const thumbUri = await fetchSampleImageAsDataUri(sample.thumbFileName);
+        setImagePreviewUri(thumbUri);
+      } else {
+        setImagePreviewUri(dataUri);
+      }
       setImageFileName(sample.fileName);
       setImageFileSize(0);
       setShowSampleModal(false);
     } catch {
-      setImageError(`Failed to load sample image: ${sample.fileName}`);
+      setImageError(`Failed to load sample: ${sample.fileName}`);
       setShowSampleModal(false);
     }
   }, []);
@@ -216,20 +228,30 @@ export function PaddleOcr() {
             <input
               type="file"
               ref={fileInputRef}
-              accept="image/*"
+              accept="image/*,application/pdf"
               className="hidden"
               onChange={handleFileSelect}
             />
 
             {imageDataUri ? (
               <div className="border border-border rounded-sm p-2">
-                <img
-                  src={imageDataUri}
-                  alt={imageFileName}
-                  className="w-full max-h-[400px] object-contain rounded-sm bg-muted/20 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => setShowImagePreview(true)}
-                  title="Click to view full size"
-                />
+                {imagePreviewUri ? (
+                  <img
+                    src={imagePreviewUri}
+                    alt={imageFileName}
+                    className="w-full max-h-[400px] object-contain rounded-sm bg-muted/20 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => setShowImagePreview(true)}
+                    title="Click to view full size"
+                  />
+                ) : (
+                  <div className="w-full h-[400px] flex flex-col items-center justify-center rounded-sm bg-muted/20">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" className="text-muted-foreground mb-2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span className="text-sm text-muted-foreground">{imageFileName}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-xs text-subtle truncate">
                     {imageFileName} ({formatFileSize(imageFileSize)})
@@ -256,7 +278,7 @@ export function PaddleOcr() {
                 onClick={() => fileInputRef.current?.click()}
               >
                 <p className="text-sm text-subtle mb-2">
-                  {isDragOver ? 'Drop image here' : 'Drag & drop image here'}
+                  {isDragOver ? 'Drop file here' : 'Drag & drop image or PDF here'}
                 </p>
                 <div className="flex items-center justify-center gap-3 mt-2">
                   <span className="text-xs bg-primary text-primary-foreground px-4 py-2 rounded-sm hover:bg-primary/90">
@@ -357,7 +379,7 @@ export function PaddleOcr() {
       </div>
 
       {/* Image Preview Lightbox */}
-      {showImagePreview && imageDataUri && (
+      {showImagePreview && imagePreviewUri && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 cursor-pointer"
           onClick={() => setShowImagePreview(false)}
@@ -373,7 +395,7 @@ export function PaddleOcr() {
             &times;
           </button>
           <img
-            src={imageDataUri}
+            src={imagePreviewUri}
             alt={imageFileName}
             className="max-w-[90vw] max-h-[90vh] object-contain rounded-sm"
             onClick={(e) => e.stopPropagation()}
@@ -413,7 +435,7 @@ export function PaddleOcr() {
                   className="border border-border rounded-sm p-3 text-center hover:bg-muted/40 transition-colors cursor-pointer"
                 >
                   <img
-                    src={`/samples/${sample.fileName}`}
+                    src={`/samples/${sample.thumbFileName ?? sample.fileName}`}
                     alt={sample.label}
                     className="w-full h-20 object-contain rounded-sm bg-muted/20 mb-2"
                   />

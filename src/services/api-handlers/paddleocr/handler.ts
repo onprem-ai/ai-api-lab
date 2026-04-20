@@ -78,12 +78,14 @@ export const layoutParsingHandler: NonStreamingApiHandler = {
     if (!imageDataUri) {
       throw new Error('PaddleOCR requires an image.');
     }
-    const base64Image = dataUriToBase64(imageDataUri);
+    const base64Data = dataUriToBase64(imageDataUri);
+    const isPdf = imageDataUri.startsWith('data:application/pdf');
 
-    // fileType 1 = image (as shown in the API documentation)
+    // fileType: 0 = PDF, 1 = image
+    // https://paddlepaddle.github.io/PaddleX/latest/en/pipeline_usage/tutorials/ocr_pipelines/layout_parsing.html
     const requestBody = {
-      file: base64Image,
-      fileType: 1,
+      file: base64Data,
+      fileType: isPdf ? 0 : 1,
     };
 
     const normalizedBaseUrl = apiBaseUrl.replace(/\/+$/, '');

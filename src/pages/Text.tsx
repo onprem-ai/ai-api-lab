@@ -8,7 +8,7 @@ import { SystemPromptInput, UserPromptInput, MaxTokensInput } from '@/components
 import type { LLMMessage } from '@/services/llmService';
 
 export function Text() {
-  const [prompt, setPrompt] = useState<string>('Write the longest poem in the world.\nkeep going. never stop.');
+  const [prompt, setPrompt] = useState<string>('Write a long poem');
   const { stream, cancel, metrics, reset, output } = useLLMStream();
   const { apiUrl, apiKey, model, systemPrompt, setSystemPrompt, maxTokens, setMaxTokens, charsPerToken, apiType } = useStore();
 

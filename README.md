@@ -10,7 +10,7 @@ Built by [onprem.ai](https://onprem.ai).
 
 - **LLM Testing** — streaming chat completions with live token metrics (tokens/sec, TTFT, prompt TPS)
 - **Vision (LLM-VL)** — test vision-language models with image + text input (drag & drop, sample images)
-- **OCR** — PaddleOCR layout parsing with structured markdown output
+- **OCR** — PaddleOCR layout parsing (images & PDFs) with structured markdown output
 - **API Standards** — built-in documentation for each supported API format
 - **Config Bookmarks** — save and load API configurations for quick switching
 - **Shareable URLs** — copy a pre-configured URL (with API key) to share setups
@@ -27,7 +27,7 @@ Built by [onprem.ai](https://onprem.ai).
 | LLM | OpenAI ASR | Audio transcription (Whisper-compatible) |
 | Vision | OpenAI VL | OpenAI-compatible vision-language (text + image) |
 | Vision | Anthropic VL | Anthropic vision-language (text + image) |
-| OCR | PaddleOCR | PaddleOCR/PaddleX layout parsing |
+| OCR | PaddleOCR | PaddleOCR/PaddleX layout parsing (images & PDFs) |
 | Image Gen | BFL | Black Forest Labs (FLUX) image generation |
 | Video Gen | LTX | LTX video generation |
 
