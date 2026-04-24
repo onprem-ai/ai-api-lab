@@ -20,11 +20,41 @@ export const SAMPLE_PDFS: SampleFile[] = [
   { fileName: 'cv_de.pdf', label: 'CV (German)', description: 'PDF curriculum vitae', thumbFileName: 'cv_de.thumb.png' },
 ];
 
+export const SAMPLE_AUDIO: SampleFile[] = [
+  { fileName: 'voxpopuli_en.wav', label: 'VoxPopuli EN', description: 'EU Parliament speech (English, 6s)' },
+];
+
 interface SamplePickerModalProps {
   open: boolean;
   onClose: () => void;
   onSelect: (sample: SampleFile) => void;
   showPdfs?: boolean;
+  showAudio?: boolean;
+}
+
+function AudioSampleGrid({ samples, onSelect }: { samples: SampleFile[]; onSelect: (s: SampleFile) => void }) {
+  return (
+    <div className="grid grid-cols-3 gap-3">
+      {samples.map((sample) => (
+        <button
+          key={sample.fileName}
+          type="button"
+          onClick={() => onSelect(sample)}
+          className="border border-border rounded-sm p-3 text-center hover:bg-muted/40 transition-colors cursor-pointer"
+        >
+          <div className="w-full h-20 flex items-center justify-center rounded-sm bg-muted/20 mb-2">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-muted-foreground">
+              <path d="M9 18V5l12-2v13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="6" cy="18" r="3" stroke="currentColor" strokeWidth="1.5"/>
+              <circle cx="18" cy="16" r="3" stroke="currentColor" strokeWidth="1.5"/>
+            </svg>
+          </div>
+          <div className="text-xs font-medium">{sample.label}</div>
+          <div className="text-xs text-subtle mt-0.5">{sample.description}</div>
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function SampleGrid({ samples, onSelect }: { samples: SampleFile[]; onSelect: (s: SampleFile) => void }) {
@@ -50,7 +80,7 @@ function SampleGrid({ samples, onSelect }: { samples: SampleFile[]; onSelect: (s
   );
 }
 
-export function SamplePickerModal({ open, onClose, onSelect, showPdfs = false }: SamplePickerModalProps) {
+export function SamplePickerModal({ open, onClose, onSelect, showPdfs = false, showAudio = false }: SamplePickerModalProps) {
   useEffect(() => {
     if (!open) return;
     const handleEscape = (e: KeyboardEvent) => {
@@ -83,13 +113,24 @@ export function SamplePickerModal({ open, onClose, onSelect, showPdfs = false }:
           </button>
         </div>
 
-        {showPdfs && <h4 className="text-xs font-semibold text-subtle mb-2">Images</h4>}
-        <SampleGrid samples={SAMPLE_IMAGES} onSelect={onSelect} />
+        {!showAudio && (
+          <>
+            {showPdfs && <h4 className="text-xs font-semibold text-subtle mb-2">Images</h4>}
+            <SampleGrid samples={SAMPLE_IMAGES} onSelect={onSelect} />
+          </>
+        )}
 
-        {showPdfs && (
+        {!showAudio && showPdfs && (
           <>
             <h4 className="text-xs font-semibold text-subtle mb-2 mt-4">PDFs</h4>
             <SampleGrid samples={SAMPLE_PDFS} onSelect={onSelect} />
+          </>
+        )}
+
+        {showAudio && (
+          <>
+            <h4 className="text-xs font-semibold text-subtle mb-2 mt-4">Audio</h4>
+            <AudioSampleGrid samples={SAMPLE_AUDIO} onSelect={onSelect} />
           </>
         )}
       </div>
