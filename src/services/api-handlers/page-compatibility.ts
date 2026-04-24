@@ -8,10 +8,11 @@
  *   "llm"        → /llm
  *   "llm-vl"     → /llm-vl
  *   "paddle-ocr" → /paddle-ocr
+ *   "asr"        → /asr
  */
 
 /** All known page IDs in the application */
-export type PageId = 'llm' | 'llm-vl' | 'paddle-ocr';
+export type PageId = 'llm' | 'llm-vl' | 'paddle-ocr' | 'asr';
 
 /**
  * Maps each handler type to the set of pages it supports.
@@ -20,7 +21,7 @@ export type PageId = 'llm' | 'llm-vl' | 'paddle-ocr';
 const HANDLER_SUPPORTED_PAGES: Record<string, PageId[]> = {
   'openai':        ['llm'],
   'openai-vl':     ['llm-vl'],
-  'openai-asr':    ['llm'],
+  'openai-asr':    ['asr'],
   'anthropic':     ['llm'],
   'anthropic-vl':  ['llm-vl'],
   'paddleocr':     ['paddle-ocr'],
@@ -33,6 +34,7 @@ export const PAGE_ROUTES: Record<PageId, string> = {
   'llm':        '/llm',
   'llm-vl':     '/llm-vl',
   'paddle-ocr': '/paddle-ocr',
+  'asr':        '/asr',
 };
 
 /** Human-readable page labels for warning messages */
@@ -40,6 +42,7 @@ export const PAGE_LABELS: Record<PageId, string> = {
   'llm':        'LLM',
   'llm-vl':     'LLM-VL',
   'paddle-ocr': 'Paddle OCR',
+  'asr':        'ASR',
 };
 
 /**
