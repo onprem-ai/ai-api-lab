@@ -141,6 +141,7 @@ export function Asr() {
     setFileError('');
     try {
       const response = await fetch(`/samples/${sample.fileName}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const blob = await response.blob();
       const file = new File([blob], sample.fileName, { type: blob.type || 'audio/wav' });
       loadAudioFile(file);
@@ -195,6 +196,7 @@ export function Asr() {
       if (error instanceof Error && error.name === 'AbortError') return;
       const message = error instanceof Error ? error.message : 'Transcription request failed';
       setErrorMessage(message);
+      console.error('ASR transcription error:', error);
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;
