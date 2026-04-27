@@ -73,8 +73,9 @@ export function Asr() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const recordingChunksRef = useRef<Float32Array[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { apiUrl, apiKey, model } = useStore();
@@ -161,30 +162,22 @@ export function Asr() {
   const handleStartRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
-      const recorder = new MediaRecorder(stream, { mimeType });
+      const audioCtx = new AudioContext();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
       recordingChunksRef.current = [];
 
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) recordingChunksRef.current.push(e.data);
+      processor.onaudioprocess = (e) => {
+        const data = e.inputBuffer.getChannelData(0);
+        recordingChunksRef.current.push(new Float32Array(data));
       };
 
-      recorder.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        if (recordingTimerRef.current) {
-          clearInterval(recordingTimerRef.current);
-          recordingTimerRef.current = null;
-        }
-        const blob = new Blob(recordingChunksRef.current, { type: mimeType });
-        const ext = mimeType === 'audio/webm' ? 'webm' : 'm4a';
-        const file = new File([blob], `recording.${ext}`, { type: mimeType });
-        loadAudioFile(file);
-        setIsRecording(false);
-        setRecordingDuration(0);
-      };
+      source.connect(processor);
+      processor.connect(audioCtx.destination);
 
-      mediaRecorderRef.current = recorder;
-      recorder.start();
+      recordingStreamRef.current = stream;
+      audioContextRef.current = audioCtx;
+
       setIsRecording(true);
       setRecordingDuration(0);
       recordingTimerRef.current = setInterval(() => {
@@ -193,20 +186,77 @@ export function Asr() {
     } catch {
       setFileError('Microphone access denied or unavailable.');
     }
-  }, [loadAudioFile]);
+  }, []);
 
   const handleStopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
     }
-  }, []);
+    const stream = recordingStreamRef.current;
+    const audioCtx = audioContextRef.current;
+    if (stream) stream.getTracks().forEach((t) => t.stop());
+
+    const sampleRate = audioCtx?.sampleRate ?? 44100;
+    if (audioCtx) audioCtx.close();
+    recordingStreamRef.current = null;
+    audioContextRef.current = null;
+
+    // Merge chunks into a single PCM buffer
+    const chunks = recordingChunksRef.current;
+    const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+    const pcm = new Float32Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      pcm.set(chunk, offset);
+      offset += chunk.length;
+    }
+    recordingChunksRef.current = [];
+
+    // Encode as 16-bit PCM WAV
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+    const dataSize = pcm.length * numChannels * (bitsPerSample / 8);
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    const writeString = (off: number, str: string) => {
+      for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i));
+    };
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, numChannels * (bitsPerSample / 8), true);
+    view.setUint16(34, bitsPerSample, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    let pos = 44;
+    for (let i = 0; i < pcm.length; i++) {
+      const s = Math.max(-1, Math.min(1, pcm[i]));
+      view.setInt16(pos, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      pos += 2;
+    }
+
+    const blob = new Blob([buffer], { type: 'audio/wav' });
+    const file = new File([blob], 'recording.wav', { type: 'audio/wav' });
+    loadAudioFile(file);
+    setIsRecording(false);
+    setRecordingDuration(0);
+  }, [loadAudioFile]);
 
   useEffect(() => {
     return () => {
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-      }
+      if (recordingStreamRef.current) recordingStreamRef.current.getTracks().forEach((t) => t.stop());
+      if (audioContextRef.current) audioContextRef.current.close();
     };
   }, []);
 
