@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import { ApiTypeWarning } from '@/components/ApiTypeWarning';
 import { getApiHandler } from '@/services/api-handlers/registry';
@@ -67,9 +67,15 @@ export function Asr() {
   const [errorMessage, setErrorMessage] = useState('');
   const [elapsedMs, setElapsedMs] = useState(0);
 
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+
   const abortControllerRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { apiUrl, apiKey, model } = useStore();
 
@@ -151,6 +157,58 @@ export function Asr() {
       setShowSampleModal(false);
     }
   }, [loadAudioFile]);
+
+  const handleStartRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+      const recorder = new MediaRecorder(stream, { mimeType });
+      recordingChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordingChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+        const blob = new Blob(recordingChunksRef.current, { type: mimeType });
+        const ext = mimeType === 'audio/webm' ? 'webm' : 'm4a';
+        const file = new File([blob], `recording.${ext}`, { type: mimeType });
+        loadAudioFile(file);
+        setIsRecording(false);
+        setRecordingDuration(0);
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+      setRecordingDuration(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration((d) => d + 1);
+      }, 1000);
+    } catch {
+      setFileError('Microphone access denied or unavailable.');
+    }
+  }, [loadAudioFile]);
+
+  const handleStopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
 
   const handleCancel = () => {
     if (abortControllerRef.current) {
@@ -251,38 +309,79 @@ export function Asr() {
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`border-2 border-dashed rounded-sm p-6 min-h-[300px] flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${
-                  isDragOver
-                    ? 'border-ring bg-muted/40'
-                    : 'border-border hover:bg-muted/30'
-                }`}
-                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-sm p-6 min-h-[300px] flex flex-col items-center justify-center text-center transition-colors ${
+                  isRecording
+                    ? 'border-destructive bg-destructive/5'
+                    : isDragOver
+                      ? 'border-ring bg-muted/40'
+                      : 'border-border hover:bg-muted/30'
+                } ${isRecording ? '' : 'cursor-pointer'}`}
+                onClick={isRecording ? undefined : () => fileInputRef.current?.click()}
               >
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" className="text-muted-foreground mb-3">
-                  <path d="M9 18V5l12-2v13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="6" cy="18" r="3" stroke="currentColor" strokeWidth="1.5"/>
-                  <circle cx="18" cy="16" r="3" stroke="currentColor" strokeWidth="1.5"/>
-                </svg>
-                <p className="text-sm text-subtle mb-2">
-                  {isDragOver ? 'Drop audio file here' : 'Drag & drop audio file here'}
-                </p>
-                <p className="text-xs text-subtle mb-3">flac, mp3, mp4, ogg, wav, webm · max 25MB</p>
-                <div className="flex items-center justify-center gap-3">
-                  <span className="text-xs bg-primary text-primary-foreground px-4 py-2 rounded-sm hover:bg-primary/90">
-                    Select File
-                  </span>
-                  <span className="text-xs text-subtle">or</span>
-                  <span
-                    role="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowSampleModal(true);
-                    }}
-                    className="text-xs bg-primary text-primary-foreground px-4 py-2 rounded-sm hover:bg-primary/90"
-                  >
-                    Select Example
-                  </span>
-                </div>
+                {isRecording ? (
+                  <>
+                    <div className="relative mb-3">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" className="text-destructive animate-pulse">
+                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" fill="currentColor"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                        <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                    </div>
+                    <p className="text-sm text-destructive font-medium mb-1">Recording...</p>
+                    <p className="text-xs text-subtle mb-3 font-mono">{formatDuration(recordingDuration)}</p>
+                    <button
+                      type="button"
+                      onClick={handleStopRecording}
+                      className="text-xs bg-destructive text-white px-4 py-2 rounded-sm hover:bg-destructive/90"
+                    >
+                      Stop Recording
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" className="text-muted-foreground mb-3">
+                      <path d="M9 18V5l12-2v13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <circle cx="6" cy="18" r="3" stroke="currentColor" strokeWidth="1.5"/>
+                      <circle cx="18" cy="16" r="3" stroke="currentColor" strokeWidth="1.5"/>
+                    </svg>
+                    <p className="text-sm text-subtle mb-2">
+                      {isDragOver ? 'Drop audio file here' : 'Drag & drop audio file here'}
+                    </p>
+                    <p className="text-xs text-subtle mb-3">flac, mp3, mp4, ogg, wav, webm · max 25MB</p>
+                    <div className="flex items-center justify-center gap-3">
+                      <span className="text-xs bg-primary text-primary-foreground px-4 py-2 rounded-sm hover:bg-primary/90">
+                        Select File
+                      </span>
+                      <span className="text-xs text-subtle">or</span>
+                      <span
+                        role="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowSampleModal(true);
+                        }}
+                        className="text-xs bg-primary text-primary-foreground px-4 py-2 rounded-sm hover:bg-primary/90"
+                      >
+                        Select Example
+                      </span>
+                      <span className="text-xs text-subtle">or</span>
+                      <span
+                        role="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartRecording();
+                        }}
+                        className="text-xs bg-primary text-primary-foreground px-4 py-2 rounded-sm hover:bg-primary/90 inline-flex items-center gap-1.5"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" fill="currentColor"/>
+                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                          <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                        </svg>
+                        Record
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
