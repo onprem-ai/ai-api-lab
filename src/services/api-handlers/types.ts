@@ -29,8 +29,6 @@ export interface AuthConfig {
 export const AUTH_BEARER: AuthConfig = { headerName: 'Authorization', valuePrefix: 'Bearer ' };
 /** Anthropic: x-api-key: {key} (no prefix) */
 export const AUTH_ANTHROPIC: AuthConfig = { headerName: 'x-api-key', valuePrefix: '' };
-/** Black Forest Labs: x-key: {key} (no prefix) */
-export const AUTH_BFL: AuthConfig = { headerName: 'x-key', valuePrefix: '' };
 
 /**
  * Builds the auth header dict from an AuthConfig and a raw API key.

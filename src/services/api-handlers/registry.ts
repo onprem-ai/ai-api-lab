@@ -5,8 +5,8 @@ import { openaiAsrHandler } from './openai-asr/handler';
 import { anthropicHandler } from './anthropic/handler';
 import { anthropicVisionHandler } from './anthropic-vl/handler';
 import { layoutParsingHandler } from './paddleocr/handler';
-import { bflHandler } from './bfl/handler';
 import { ltxHandler } from './ltx/handler';
+import { openaiImageHandler } from './openai-image/handler';
 
 // ---------------------------------------------------------------------------
 // Handler Registry
@@ -25,8 +25,8 @@ registerHandler(openaiAsrHandler);
 registerHandler(anthropicHandler);
 registerHandler(anthropicVisionHandler);
 registerHandler(layoutParsingHandler);
-registerHandler(bflHandler);
 registerHandler(ltxHandler);
+registerHandler(openaiImageHandler);
 
 /** Get a handler by its type identifier. */
 export function getApiHandler(handlerType: string): ApiHandler | undefined {
@@ -71,10 +71,15 @@ const MODEL_HANDLER_CONFIG: ModelHandlerMapping[] = [
     modelPattern: /whisper|transcribe|asr/i,
     handlerTypes: ['openai-asr', 'openai'],
   },
-  // FLUX image generation models → bfl
+  // FLUX image generation models → openai-image (self-hosted)
   {
     modelPattern: /flux/i,
-    handlerTypes: ['bfl'],
+    handlerTypes: ['openai-image'],
+  },
+  // Self-hosted image generation models → openai-image
+  {
+    modelPattern: /z-image|zimage|turbo.*image|image.*turbo/i,
+    handlerTypes: ['openai-image'],
   },
   // LTX video generation models → ltx
   {

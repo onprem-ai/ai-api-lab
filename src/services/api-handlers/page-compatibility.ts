@@ -12,7 +12,7 @@
  */
 
 /** All known page IDs in the application */
-export type PageId = 'llm' | 'llm-vl' | 'paddle-ocr' | 'asr';
+export type PageId = 'llm' | 'llm-vl' | 'paddle-ocr' | 'asr' | 'image-gen';
 
 /**
  * Maps each handler type to the set of pages it supports.
@@ -25,7 +25,7 @@ const HANDLER_SUPPORTED_PAGES: Record<string, PageId[]> = {
   'anthropic':     ['llm'],
   'anthropic-vl':  ['llm-vl'],
   'paddleocr':     ['paddle-ocr'],
-  'bfl':           [],
+  'openai-image':  ['image-gen'],
   'ltx':           [],
 };
 
@@ -35,6 +35,7 @@ export const PAGE_ROUTES: Record<PageId, string> = {
   'llm-vl':     '/llm-vl',
   'paddle-ocr': '/paddle-ocr',
   'asr':        '/asr',
+  'image-gen':  '/image-gen',
 };
 
 /** Human-readable page labels for warning messages */
@@ -43,6 +44,7 @@ export const PAGE_LABELS: Record<PageId, string> = {
   'llm-vl':     'LLM-VL',
   'paddle-ocr': 'Paddle OCR',
   'asr':        'ASR',
+  'image-gen':  'Image Gen',
 };
 
 /**

@@ -14,7 +14,6 @@ import openaiAsrDoc from './openai-asr/API.md?raw';
 import anthropicDoc from './anthropic/API.md?raw';
 import anthropicVlDoc from './anthropic-vl/API.md?raw';
 import paddleocrDoc from './paddleocr/API.md?raw';
-import bflDoc from './bfl/API.md?raw';
 import ltxDoc from './ltx/API.md?raw';
 
 /** Map of handler type → raw markdown content */
@@ -25,6 +24,5 @@ export const API_HANDLER_DOCS: Record<string, string> = {
   'anthropic': anthropicDoc,
   'anthropic-vl': anthropicVlDoc,
   'paddleocr': paddleocrDoc,
-  'bfl': bflDoc,
   'ltx': ltxDoc,
 };
