@@ -54,6 +54,9 @@ coverage
 # Build cache
 .vite
 
+# Wrangler
+.wrangler/
+
 # AI agent config (local, not for public repo)
 CLAUDE.md
 .claude/
